@@ -1,0 +1,11 @@
+package s.game.util;
+
+import org.json.JSONObject;
+
+public class JsonUtils {
+
+	public static JSONObject parseJsonFile(String filePath) {
+		return null;
+        // Implement logic to read and parse JSON file
+    }
+}

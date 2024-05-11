@@ -1,0 +1,29 @@
+package s.game;
+
+import org.json.JSONObject;
+
+import s.game.service.impl.ScratchGameServiceImpl;
+import s.game.util.JsonUtils;
+
+
+public class ScratchGame {
+	
+	
+	public static void main(String[] args) {
+        try {
+            JSONObject configJson = JsonUtils.parseJsonFile("game_config.json");
+            int betAmount = 100; 
+
+            // Initialize ScratchGameService and invoke game logic
+            ScratchGameServiceImpl  gameService = new ScratchGameServiceImpl();
+            JSONObject result = gameService.evaluateGame(configJson, betAmount);
+
+            //Result json
+            System.out.println(result.toString(4));
+
+        } catch (Exception e) {
+            e.printStackTrace();
+            throw new RuntimeException(e.getMessage());
+        }
+    }
+}

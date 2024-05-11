@@ -1,0 +1,119 @@
+package s.game;
+
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.nio.file.Files;
+import java.nio.file.Paths;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.stream.Collector;
+import java.util.stream.Collectors;
+
+import org.json.JSONArray;
+import org.json.JSONObject;
+
+import s.game.models.GameConfig;
+import s.game.models.ProbabilityConfig;
+import s.game.models.SymbolConfig;
+import s.game.models.WinCombinationConfig;
+
+public class GameConfigurationLoader {
+	  public GameConfig loadGameConfig(String configFile) {
+	        try {
+	        	InputStream inputStream = getClass().getClassLoader().getResourceAsStream("game_config.json");
+	        	if (inputStream != null) {
+	        	    // Read contents from InputStream
+	        	    BufferedReader reader = new BufferedReader(new InputStreamReader(inputStream));
+	        	    StringBuilder content = new StringBuilder();
+	        	    String line;
+	        	    while ((line = reader.readLine()) != null) {
+	        	        content.append(line);
+	        	    }
+	        	    reader.close();
+
+	        	    // Now parse the JSON content
+	        	    JSONObject jsonConfig = new JSONObject(content.toString());
+	        	    // Continue with parsing and processing
+
+	            // Extract game configuration
+	            int columns = jsonConfig.optInt("columns", 3); // Default value if "columns" not present
+	            int rows = jsonConfig.optInt("rows", 3); // Default value if "rows" not present
+	            Map<String, SymbolConfig> symbols = parseSymbols(jsonConfig.getJSONObject("symbols"));
+	            List<ProbabilityConfig> probabilities = parseProbabilities(jsonConfig.getJSONArray("probabilities"));
+	            Map<String, WinCombinationConfig> winCombinations = parseWinCombinations(jsonConfig.getJSONObject("win_combinations"));
+
+	            // Create GameConfig object
+	            return new GameConfig(columns, rows, symbols, probabilities, winCombinations);
+	        } catch (IOException e) {
+	            e.printStackTrace();
+	            return null;
+	        }
+	    }
+
+	    private Map<String, SymbolConfig> parseSymbols(JSONObject symbolsJson) {
+	        Map<String, SymbolConfig> symbolsMap = new HashMap<String, SymbolConfig>();
+	        for (String symbolName : symbolsJson.keySet()) {
+	            JSONObject symbolObj = symbolsJson.getJSONObject(symbolName);
+	            double rewardMultiplier = symbolObj.getDouble("reward_multiplier");
+	            String type = symbolObj.getString("type");
+	            String action = symbolObj.optString("impact", null); // Optional field
+	            Integer extra = symbolObj.optInt("extra", 0); // Optional field
+
+	            symbolsMap.put(symbolName, new SymbolConfig(rewardMultiplier, type, action, extra));
+	        }
+	        return symbolsMap;
+	    }
+
+	    private List<ProbabilityConfig> parseProbabilities(JSONArray probabilitiesJson) {
+	        List<ProbabilityConfig> probabilitiesList = new ArrayList<ProbabilityConfig>();
+	        for (int i = 0; i < probabilitiesJson.length(); i++) {
+	            JSONObject probabilityObj = probabilitiesJson.getJSONObject(i);
+	            int column = probabilityObj.getInt("column");
+	            int row = probabilityObj.getInt("row");
+	            Map<String, Integer> symbols = parseSymbolProbabilities(probabilityObj.getJSONObject("symbols"));
+
+	            probabilitiesList.add(new ProbabilityConfig(column, row, symbols));
+	        }
+	        return probabilitiesList;
+	    }
+
+	    private Map<String, Integer> parseSymbolProbabilities(JSONObject symbolProbabilitiesJson) {
+	        Map<String, Integer> symbolProbabilitiesMap = new HashMap<String, Integer>();
+	        for (String symbolName : symbolProbabilitiesJson.keySet()) {
+	            int probability = symbolProbabilitiesJson.getInt(symbolName);
+	            symbolProbabilitiesMap.put(symbolName, probability);
+	        }
+	        return symbolProbabilitiesMap;
+	    }
+
+	    private Map<String, WinCombinationConfig> parseWinCombinations(JSONObject winCombinationsJson) {
+	        Map<String, WinCombinationConfig> winCombinationsMap = new HashMap<String, WinCombinationConfig>();
+	        for (String combinationName : winCombinationsJson.keySet()) {
+	            JSONObject combinationObj = winCombinationsJson.getJSONObject(combinationName);
+	            double rewardMultiplier = combinationObj.getDouble("reward_multiplier");
+	            String when = combinationObj.getString("when");
+	            int count = combinationObj.getInt("count");
+	            String group = combinationObj.getString("group");
+	            JSONArray coveredAreasJson = combinationObj.optJSONArray("covered_areas");
+
+	            List<List<String>> coveredAreas = new ArrayList<List<String>>();
+	            if (coveredAreasJson != null) {
+	                for (int i = 0; i < coveredAreasJson.length(); i++) {
+	                    JSONArray areaArray = coveredAreasJson.getJSONArray(i);
+	                    List<String> areaList = new ArrayList<String>();
+	                    for (int j = 0; j < areaArray.length(); j++) {
+	                        areaList.add(areaArray.getString(j));
+	                    }
+	                    coveredAreas.add(areaList);
+	                }
+	            }
+
+	            winCombinationsMap.put(combinationName, new WinCombinationConfig(rewardMultiplier, when, count, group, coveredAreas));
+	        }
+	        return winCombinationsMap;
+	    }
+}

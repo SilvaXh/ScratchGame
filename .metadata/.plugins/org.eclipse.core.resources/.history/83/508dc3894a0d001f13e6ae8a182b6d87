@@ -1,0 +1,5 @@
+package s.game.models;
+
+public class ProbabilityConfig {
+
+}

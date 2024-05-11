@@ -1,0 +1,57 @@
+package s.game;
+
+public class Game {
+	
+	private GameConfig gameConfig;
+
+    public ScratchGame(GameConfig gameConfig) {
+        this.gameConfig = gameConfig;
+    }
+
+    public char[][] generateMatrix() {
+        // Implement matrix generation based on gameConfig.columns and gameConfig.rows
+        return new char[gameConfig.getRows()][gameConfig.getColumns()];
+    }
+
+    public boolean hasWinningCombination(char[][] matrix) {
+        // Implement logic to check for winning combinations based on gameConfig.winCombinations
+        return false;
+    }
+
+    public double calculateReward(char[][] matrix) {
+        // Implement logic to calculate reward based on winning combinations and symbol values from gameConfig
+        return 0.0;
+    }
+
+    public double applyBonusActions(double reward) {
+        // Implement logic to apply bonus symbol actions based on gameConfig.symbols
+        return reward;
+    }
+
+    public void playGame() {
+        char[][] matrix = generateMatrix();
+
+        if (hasWinningCombination(matrix)) {
+            double reward = calculateReward(matrix);
+            double finalReward = applyBonusActions(reward);
+
+            System.out.println("Congratulations! You won " + finalReward + " credits!");
+        } else {
+            System.out.println("Sorry! You lost. Try again!");
+        }
+    }
+	
+	
+    public static void main(String[] args) {
+        System.out.println("Hello");
+        GameConfigurationLoader configLoader = new GameConfigurationLoader();
+        GameConfig gameConfig = configLoader.loadGameConfig("game_config.json");
+
+        if (gameConfig != null) {
+            ScratchGame game = new ScratchGame(gameConfig);
+            game.playGame();
+        } else {
+            System.out.println("Failed to load game configuration.");
+        }
+    }
+}

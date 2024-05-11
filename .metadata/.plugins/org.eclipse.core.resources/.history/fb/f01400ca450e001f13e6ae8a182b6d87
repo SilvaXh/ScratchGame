@@ -1,0 +1,6 @@
+package s.game.models;
+
+public class Matrix {
+
+	  private String[][] grid;
+}

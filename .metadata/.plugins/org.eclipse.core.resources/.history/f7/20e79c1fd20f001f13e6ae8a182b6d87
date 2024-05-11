@@ -1,0 +1,11 @@
+package s.game.service;
+
+import org.json.JSONObject;
+
+import s.game.models.Matrix;
+
+public interface ScratchGameService {
+	
+	public Matrix generateMatrix(int columns, int rows, JSONObject probabilities);
+	public JSONObject evaluateGame(JSONObject configJson, int betAmount);
+}

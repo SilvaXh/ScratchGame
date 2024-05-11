@@ -1,0 +1,405 @@
+package s.game.service.impl;
+
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Map.Entry;
+import java.util.Random;
+
+import org.json.JSONArray;
+import org.json.JSONObject;
+
+import s.game.models.Matrix;
+import s.game.service.ScratchGameService;
+
+public class ScratchGameServiceImpl implements ScratchGameService{
+
+	public Matrix generateMatrix(int columns, int rows, JSONObject probabilities) {
+        Matrix matrix = new Matrix();
+        String[][] grid = new String[rows][columns];
+        Random random = new Random();
+
+        // Extract probabilities object
+        JSONObject probabilitiesObj = probabilities.getJSONObject("probabilities");
+
+        // Extract standard and bonus symbol probabilities from nested object
+        JSONArray standardSymbols = probabilitiesObj.getJSONArray("standard_symbols");
+        JSONObject bonusSymbolsObj = probabilitiesObj.getJSONObject("bonus_symbols");
+
+        // Fill the matrix with symbols based on probabilities
+        for (int row = 0; row < rows; row++) {
+            for (int col = 0; col < columns; col++) {
+                // Generate a random number to determine the symbol
+                double rand = random.nextDouble() * 100; // Range [0, 100)
+
+                // Determine the symbol based on probabilities
+                String symbol = determineSymbol(rand, standardSymbols, bonusSymbolsObj);
+                grid[row][col] = symbol;
+            }
+        }
+
+        matrix.setGrid(grid);
+        return matrix;
+    }
+
+	private String determineSymbol(double rand, JSONArray standardSymbols, JSONObject bonusSymbolsObj) {
+	    double cumulativeProbability = 0.0;
+
+	    // Combine all symbol probabilities
+	    List<JSONObject> allSymbols = new ArrayList<JSONObject>();
+
+	    // Extract probabilities for standard symbols
+	    for (Object obj : standardSymbols) {
+	        if (obj instanceof JSONObject) {
+	            JSONObject symbolInfo = (JSONObject) obj;
+	            JSONObject symbolProbabilities = symbolInfo.getJSONObject("symbols");
+
+	            // Loop through symbol probabilities for the given position
+	            for (String symbolKey : symbolProbabilities.keySet()) {
+	                JSONObject symbol = new JSONObject();
+	                symbol.put("symbol", symbolKey);
+	                symbol.put("probability", symbolProbabilities.getDouble(symbolKey));
+	                allSymbols.add(symbol);
+	            }
+	        }
+	    }
+
+	    // Extract probabilities for bonus symbols
+	    if (bonusSymbolsObj != null && bonusSymbolsObj.has("symbols")) {
+	        JSONObject bonusSymbols = bonusSymbolsObj.getJSONObject("symbols");
+	        for (String bonusSymbolKey : bonusSymbols.keySet()) {
+	            JSONObject bonusSymbol = new JSONObject();
+	            bonusSymbol.put("symbol", bonusSymbolKey);
+	            bonusSymbol.put("probability", bonusSymbols.getDouble(bonusSymbolKey));
+	            allSymbols.add(bonusSymbol);
+	        }
+	    }
+
+	    // Determine the symbol based on probabilities
+	    for (JSONObject symbol : allSymbols) {
+	        double probability = symbol.getDouble("probability");
+	        cumulativeProbability += probability;
+	        if (rand < cumulativeProbability) {
+	            return symbol.getString("symbol");
+	        }
+	    }
+
+	    return ""; // Default return if symbol is not determined
+	}
+
+
+    public JSONObject evaluateGame(JSONObject configJson, int betAmount) {
+        // Extract configuration details
+        int columns = parseInt(configJson.get("columns"));
+        int rows = parseInt(configJson.get("rows"));
+        
+        JSONObject symbolsObj = configJson.getJSONObject("symbols");  // Get JSONObject for symbols
+
+        // Convert symbolsObj to a format suitable for processing
+        JSONArray symbols = new JSONArray();
+        for (String symbolName : symbolsObj.keySet()) {
+            JSONObject symbolDetails = symbolsObj.getJSONObject(symbolName);
+            // Include the symbol name in its properties for processing
+            symbolDetails.put("name", symbolName);
+            symbols.put(symbolDetails);
+        }
+        
+        
+        JSONObject winCombinationsObj = configJson.getJSONObject("win_combinations");
+
+        // Convert winCombinationsObj to a JSONArray suitable for processing
+        JSONArray winCombinations = new JSONArray();
+        for (String winCombName : winCombinationsObj.keySet()) {
+            JSONObject winCombDetails = winCombinationsObj.getJSONObject(winCombName);
+            winCombDetails.put("name", winCombName);  // Include the combination name
+            winCombinations.put(winCombDetails);
+        }
+        // Generate the matrix based on probabilities
+        Matrix matrix = generateMatrix(columns, rows, configJson);
+        String[][] grid = matrix.getGrid();
+     // Print the matrix row by row
+        System.out.println("Generated Matrix:");
+        for (int row = 0; row < rows; row++) {
+            for (int col = 0; col < columns; col++) {
+                // Print each cell value
+                System.out.print(grid[row][col] + " ");
+            }
+            // Move to the next row
+            System.out.println();
+        }
+        // Evaluate the generated matrix against winning combinations
+        JSONObject gameResult = evaluateMatrix(matrix, symbols, winCombinations, betAmount);
+        return gameResult;
+    }
+
+    private JSONObject evaluateMatrix(Matrix matrix, JSONArray symbols, JSONArray winCombinations, int betAmount) {
+        JSONObject result = new JSONObject();
+        String[][] grid = matrix.getGrid();
+        Map<String, Map<Double, String>> rewardList = calculateReward(grid, winCombinations);
+
+        double reward = calculate(rewardList, symbols, betAmount, result);
+        
+        JSONArray matrixArray = new JSONArray();
+        for (String[] row : grid) {
+            JSONArray rowArray = new JSONArray();
+            for (String value : row) {
+                rowArray.put("\"" + value + "\""); // Wrap each value in double quotes
+            }
+            matrixArray.put(rowArray);
+        }
+
+        result.put("matrix", matrixArray);
+        result.put("reward", reward);
+        
+        System.out.println("reward"+ reward);
+
+        return result;
+    }
+
+    private double calculate(Map<String, Map<Double, String>> rewardList, JSONArray symbols, int betAmount, JSONObject result) {
+    	double totalReward = 0.0;
+
+        // Iterate over each symbol in the rewardList map
+        for (Map.Entry<String, Map<Double, String>> symbolEntry : rewardList.entrySet()) {
+            String symbol = symbolEntry.getKey();
+            Map<Double, String> symbolMap = symbolEntry.getValue();
+
+            System.out.println( symbol + ":");
+            // Check if the symbol is in the specified symbols JSONArray
+            JSONObject symbolInfo = getSymbolInfo(symbols, symbol);
+            double rewardMultiplierForSymbol = symbolInfo.getDouble("reward_multiplier");
+            double rewardForSymbol =  betAmount * rewardMultiplierForSymbol;
+            JSONArray winningConditions = new JSONArray();
+
+                // Iterate over entries (key-value pairs) in the nested symbol map
+                for (Map.Entry<Double, String> entry : symbolMap.entrySet()) {
+                    Double key = entry.getKey();
+                    System.out.print( " " + entry.getValue() );
+                    winningConditions.put(entry.getValue());
+
+                    // Perform calculation based on the key and value (if needed)
+                    // For example, accumulate the key values as the total reward
+                    rewardForSymbol =  rewardForSymbol * key;
+                }
+                totalReward += rewardForSymbol;
+                result.put(symbol, winningConditions);
+
+        }
+
+        return totalReward;
+	}
+
+    private JSONObject getSymbolInfo(JSONArray symbols, String symbol) {
+
+        for (int i = 0; i < symbols.length(); i++) {
+            JSONObject symbolObj = symbols.getJSONObject(i);
+            if (symbolObj.getString("name").equalsIgnoreCase(symbol)) {
+                return symbolObj;
+            }
+        }
+        return null; // Symbol not found
+    }
+    
+	// Method to calculate reward based on symbols, win combinations, and bet amount
+    private static Map<String, Map<Double, String>> calculateReward(String[][] grid, JSONArray winCombinations) {
+        Map<String, Map<Double, String>> elementWin = new HashMap<>();
+        Map<String, List<String>> elementWinJson = new HashMap<>();
+
+        Map<String, Integer> elementCounts = countElementOccurrences(grid);
+        
+        //Here instead of three i take column from json
+        Map<String, Integer> filteredCounts = filterElementCounts(elementCounts, 3);
+        //if we have elements with count more then 3
+        if(filteredCounts != null ) {
+        	//After we have elements more than size n of matrix we do other checks logically
+        	
+        	 // Display element counts visually for me for test to remove after
+            displayElementCounts(filteredCounts);
+            
+            // Iterate over each filtered element count
+            for (Map.Entry<String, Integer> entry : filteredCounts.entrySet()) {
+                String symbol = entry.getKey();
+                int count = entry.getValue();
+
+                // Iterate over each win combination to check for eligible rewards
+                for (int i = 0; i < winCombinations.length(); i++) {
+                    JSONObject combo = winCombinations.getJSONObject(i);
+
+                    // Get the win condition and required count from the win combination
+                    String winCondition = combo.getString("when");
+
+                    double rewardMultiplier = combo.getDouble("reward_multiplier");
+
+                    switch (winCondition) {
+                    case "same_symbols":
+                        int requiredCount = combo.optInt("count");
+                        if(requiredCount == count) {
+                        	elementWin.put(symbol, new HashMap<>());
+                        	elementWin.get(symbol).put(rewardMultiplier, combo.getString("name"));
+                        }
+                        break;
+                    case "same_symbols_vertically":
+                        break;
+                    case "same_symbols_horizontally":
+                        break;
+                    case "same_symbols_diagonally_left_to_right":
+                        break;
+                    case "same_symbols_diagonally_right_to_left":
+                        break;
+                    default:
+                        break;
+                }
+                
+                }
+            }
+        	
+        }
+        return elementWin;
+    }
+    
+    // Function to count occurrences of a symbol in the grid
+    public static int countSymbols(String[][] grid, String symbol) {
+        int count = 0;
+        for (String[] row : grid) {
+            for (String element : row) {
+                if (element.equals(symbol)) {
+                    count++;
+                }
+            }
+        }
+        return count;
+    }
+    
+ // Function to count occurrences of each element in the matrix
+    public static Map<String, Integer> countElementOccurrences(String[][] matrix) {
+        Map<String, Integer> counts = new HashMap<>();
+
+        int n = matrix.length;
+        for (int i = 0; i < n; i++) {
+            for (int j = 0; j < n; j++) {
+                String element = matrix[i][j];
+                counts.put(element, counts.getOrDefault(element, 0) + 1);
+            }
+        }
+
+        return counts;
+    }
+    
+    public static Map<String, Integer> filterElementCounts(Map<String, Integer> counts, int minCount) {
+        Map<String, Integer> filteredCounts = new HashMap<>();
+
+        for (Map.Entry<String, Integer> entry : counts.entrySet()) {
+            String element = entry.getKey();
+            int count = entry.getValue();
+
+            if (count >= minCount) {
+                filteredCounts.put(element, count);
+            }
+        }
+
+        return filteredCounts;
+    }
+
+    // Function to display element counts visually
+    public static void displayElementCounts(Map<String, Integer> elementCounts) {
+        System.out.println("Element Counts in Matrix:");
+
+        for (Entry<String, Integer> entry : elementCounts.entrySet()) {
+            String element = entry.getKey();
+            int count = entry.getValue();
+
+            // Print element and corresponding visual representation based on count
+            System.out.print(element + ": ");
+            for (int i = 0; i < count; i++) {
+                System.out.print("#"); // Use '#' to represent each occurrence of the element
+            }
+            System.out.println(); // Move to the next line for the next element
+        }
+    }
+
+    // Method to count symbols based on the win condition
+    
+    // Method to count occurrences in a specific column
+    private static int countColumn(String[][] grid, int col) {
+        int count = 0;
+        for (String[] row : grid) {
+            if (row.length > col && !row[col].isEmpty()) {
+                count++;
+            }
+        }
+        return count;
+    }
+
+    // Method to count occurrences in a specific row
+    private static int countRow(String[] row) {
+        int count = 0;
+        for (String cell : row) {
+            if (!cell.isEmpty()) {
+                count++;
+            }
+        }
+        return count;
+    }
+
+    // Method to count occurrences diagonally from top-left to bottom-right
+    private static int countDiagonalLeftToRight(String[][] grid) {
+        int count = 0;
+        for (int i = 0; i < grid.length; i++) {
+            if (grid[i].length > i && !grid[i][i].isEmpty()) {
+                count++;
+            }
+        }
+        return count;
+    }
+
+    // Method to count occurrences diagonally from top-right to bottom-left
+    private static int countDiagonalRightToLeft(String[][] grid) {
+        int count = 0;
+        for (int i = 0; i < grid.length; i++) {
+            int col = grid[i].length - 1 - i;
+            if (col >= 0 && !grid[i][col].isEmpty()) {
+                count++;
+            }
+        }
+        return count;
+    }
+
+
+
+
+
+    public double parseDouble(Object value) {
+        if (value instanceof Number) {
+            return ((Number) value).doubleValue();  // Convert to double
+        } else if (value instanceof String) {
+            try {
+                return Double.parseDouble((String) value);  // Attempt to parse as string
+            } catch (NumberFormatException e) {
+                // Handle parsing error
+                return 0.0;  // Default value or error handling
+            }
+        } else {
+            // Handle other cases or return default value
+            return 0.0;  // Default value for unknown types
+        }
+    }
+
+
+    public int parseInt(Object value) {
+        if (value instanceof Number) {
+            return ((Number) value).intValue();  // Convert to int
+        } else if (value instanceof String) {
+            try {
+                return Integer.parseInt((String) value);  // Parse string as int
+            } catch (NumberFormatException e) {
+                // Handle parsing error
+                return 0;  // Default value or error handling
+            }
+        } else {
+            // Handle other cases or return default value
+            return 0;  // Default value for unknown types
+        }
+    }
+
+}

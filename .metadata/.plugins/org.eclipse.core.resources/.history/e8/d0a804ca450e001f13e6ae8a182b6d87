@@ -1,0 +1,13 @@
+package s.game.models;
+
+public class Symbol {
+
+	private String name;
+    private double rewardMultiplier;
+    private String type;
+    private Double extra; // Optional field for bonus symbols
+    private String impact; // Optional field for bonus symbols
+    
+    
+	
+}

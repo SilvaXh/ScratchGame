@@ -1,0 +1,9 @@
+package s.game.models;
+
+import java.util.Map;
+
+public class ProbabilityConfig {
+	private int column;
+    private int row;
+    private Map<String, Integer> symbols;
+}

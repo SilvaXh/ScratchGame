@@ -1,0 +1,6 @@
+s\game\models\BonusSymbol.class
+s\game\models\Symbol.class
+s\game\models\Matrix.class
+s\game\ScratchGame.class
+s\game\service\impl\ScratchGameServiceImpl.class
+s\game\util\JsonUtils.class

@@ -1,0 +1,12 @@
+package s.game;
+
+import java.util.List;
+import java.util.Map;
+
+public class GameConfig {
+    private int columns;
+    private int rows;
+    private Map<String, SymbolConfig> symbols;
+    private List<ProbabilityConfig> probabilities;
+    private Map<String, WinCombinationConfig> winCombinations;
+}

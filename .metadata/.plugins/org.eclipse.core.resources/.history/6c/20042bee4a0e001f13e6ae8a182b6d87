@@ -1,0 +1,33 @@
+package s.game.util;
+
+import java.io.File;
+import java.io.IOException;
+import java.io.InputStream;
+
+import org.json.JSONObject;
+
+public class JsonUtils {
+
+	  public static JSONObject parseJsonFile(String filePath) throws IOException {
+	        File file = new File(filePath);
+	        try (InputStream inputStream = new FileInputStream(file)) {
+	            // Read JSON data from input stream
+	            String jsonContent = inputStreamToString(inputStream);
+	            // Parse JSON string into a JSONObject
+	            return new JSONObject(jsonContent);
+	        }
+	    }
+
+	    /**
+	     * Converts an InputStream to a String.
+	     *
+	     * @param inputStream InputStream to read.
+	     * @return String representation of the InputStream.
+	     * @throws IOException If an I/O error occurs while reading the InputStream.
+	     */
+	    private static String inputStreamToString(InputStream inputStream) throws IOException {
+	        try (java.util.Scanner scanner = new java.util.Scanner(inputStream, StandardCharsets.UTF_8.name()).useDelimiter("\\A")) {
+	            return scanner.hasNext() ? scanner.next() : "";
+	        }
+	    }
+}

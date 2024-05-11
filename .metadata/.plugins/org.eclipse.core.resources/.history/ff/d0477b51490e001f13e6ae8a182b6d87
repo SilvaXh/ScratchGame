@@ -1,0 +1,45 @@
+package s.game;
+
+import org.json.JSONObject;
+
+import s.game.service.ScratchGameService;
+import s.game.service.impl.ScratchGameServiceImpl;
+import s.game.util.JsonUtils;
+
+
+public class ScratchGame {
+	
+	
+	public static void main(String[] args) {
+        try {
+            // Parse command line arguments and invoke the game logic
+            JSONObject configJson = JsonUtils.parseJsonFile("config.json");
+            int betAmount = 100; // Example bet amount
+
+            // Initialize ScratchGameService and invoke game logic
+            ScratchGameServiceImpl  gameService = new ScratchGameServiceImpl();
+            JSONObject result = gameService.evaluateGame(configJson, betAmount);
+
+            // Print the result in JSON format
+            System.out.println(result.toString(4));
+
+        } catch (Exception e) {
+            System.err.println("Error occurred: " + e.getMessage());
+            e.printStackTrace();
+        }
+    }
+	
+	
+   /* public static void main(String[] args) {
+        System.out.println("Hello");
+        GameConfigurationLoader configLoader = new GameConfigurationLoader();
+        GameConfig gameConfig = configLoader.loadGameConfig("game_config.json");
+
+        if (gameConfig != null) {
+        	ScratchGame game = new ScratchGame(gameConfig);
+            game.playGame();
+        } else {
+            System.out.println("Failed to load game configuration.");
+        }
+    }*/
+}

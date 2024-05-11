@@ -1,0 +1,37 @@
+package s.game;
+
+import org.json.JSONObject;
+
+import s.game.service.impl.ScratchGameServiceImpl;
+import s.game.util.JsonUtils;
+
+public class ScratchGame {
+    
+    public static void main(String[] args) {
+        try {
+            // Parse command-line arguments
+            if (args.length < 4 || !args[0].equals("--config") || !args[2].equals("--betting-amount")) {
+                System.err.println("Usage: java ScratchGame --config <config_file> --betting-amount <amount>");
+                System.exit(1);
+            }
+            
+            String configPath = args[1];
+            int betAmount = Integer.parseInt(args[3]);
+
+            // Initialize game with specified configuration and bet amount
+            JSONObject configJson = JsonUtils.parseJsonFile(configPath);
+            ScratchGameServiceImpl gameService = new ScratchGameServiceImpl();
+            JSONObject result = gameService.evaluateGame(configJson, betAmount);
+
+            // Print result JSON
+            System.out.println(result.toString(4));
+
+        } catch (NumberFormatException e) {
+            System.err.println("Error: Betting amount must be a valid integer.");
+            System.exit(1);
+        } catch (Exception e) {
+            e.printStackTrace();
+            throw new RuntimeException(e.getMessage());
+        }
+    }
+}
